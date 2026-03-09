@@ -136,6 +136,16 @@ def _get_first(params: dict, key: str, default=None):
     return v
 
 
+def _validate_inputs(alpha: int, ptp_ns: int | None = None, port: int | None = None) -> None:
+    """Minimal sanity checks for numeric ranges."""
+    if not (0 <= alpha <= 12_288_000):
+        raise ValueError("alpha must be in range 0..12288000.")
+    if ptp_ns is not None and not (0 <= ptp_ns <= 999_999_999):
+        raise ValueError("ptp_ns must be in range 0..999999999.")
+    if port is not None and not (1 <= port <= 65535):
+        raise ValueError("port must be in range 1..65535.")
+
+
 def compute_from_params(params: dict) -> dict:
     """Compute output from web params (or programmatic dict).
 
@@ -148,6 +158,7 @@ def compute_from_params(params: dict) -> dict:
     alpha = int(str(_get_first(params, "alpha", "0")).strip())
     beta = int(str(_get_first(params, "beta", "0")).strip())
     gps_minus_utc = int(str(_get_first(params, "gps_minus_utc", "18")).strip())
+    _validate_inputs(alpha=alpha)
 
     if mode == "gps_seconds":
         gps = _to_decimal(str(_get_first(params, "gps_seconds", "")).strip())
@@ -164,6 +175,7 @@ def compute_from_params(params: dict) -> dict:
     elif mode == "ptp":
         ptp_sec = _to_decimal(str(_get_first(params, "ptp_seconds", "")).strip())
         ptp_ns = int(str(_get_first(params, "ptp_ns", "0")).strip())
+        _validate_inputs(alpha=alpha, ptp_ns=ptp_ns)
         scale = str(_get_first(params, "ptp_scale", "TAI")).strip().upper()
         gps = ptp_to_gps_seconds(ptp_sec, ptp_nanoseconds=ptp_ns, ptp_scale=scale, gps_minus_utc_seconds=gps_minus_utc)
         src_desc = f"PTP time ({scale})"
@@ -273,10 +285,10 @@ HTML_PAGE = """<!doctype html>
         <label>GPS-UTC (seconds)</label>
         <input name=\"gps_minus_utc\" value=\"18\" />
 
-        <label>α (alpha ticks @ 1.2288 GHz)</label>
+        <label>alpha (ticks @ 1.2288 GHz)</label>
         <input name=\"alpha\" value=\"0\" />
 
-        <label>β (beta frames, 10ms units)</label>
+        <label>beta (frames, 10ms units)</label>
         <input name=\"beta\" value=\"0\" />
 
         <label>Access token (optional)</label>
@@ -447,6 +459,7 @@ class OranHandler(BaseHTTPRequestHandler):
         if parsed.path != "/api/compute":
             self._send(HTTPStatus.NOT_FOUND, b"Not Found", "text/plain; charset=utf-8")
             return
+        qs = parse_qs(parsed.query)
 
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length) if length > 0 else b"{}"
@@ -463,7 +476,7 @@ class OranHandler(BaseHTTPRequestHandler):
                 params = parse_qs(raw.decode("utf-8"))
                 payload_dict = {k: (v[0] if isinstance(v, list) and v else v) for k, v in params.items()}
 
-            if not self._is_authorized(body_params=payload_dict):
+            if not self._is_authorized(qs=qs, body_params=payload_dict):
                 self._send_unauthorized(is_json=True)
                 return
 
@@ -547,6 +560,8 @@ def run_server(host: str, port: int, token: str = "", pidfile: str = "") -> None
 
 
 def run_cli(args: argparse.Namespace) -> None:
+    _validate_inputs(alpha=args.alpha, ptp_ns=args.ptp_ns)
+
     # Choose one input source
     if args.gps_seconds is not None:
         gps = _to_decimal(args.gps_seconds)
@@ -652,12 +667,12 @@ def run_gui() -> None:
 
     ttk.Separator(frm).grid(row=9, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
 
-    ttk.Label(frm, text="α (alpha ticks @ 1.2288 GHz)").grid(row=10, column=0, sticky="w", **pad)
+    ttk.Label(frm, text="alpha (ticks @ 1.2288 GHz)").grid(row=10, column=0, sticky="w", **pad)
     alpha_var = tk.StringVar(value="0")
     alpha_entry = ttk.Entry(frm, textvariable=alpha_var, width=18)
     alpha_entry.grid(row=10, column=1, sticky="w", **pad)
 
-    ttk.Label(frm, text="β (beta frames, 10ms units)").grid(row=11, column=0, sticky="w", **pad)
+    ttk.Label(frm, text="beta (frames, 10ms units)").grid(row=11, column=0, sticky="w", **pad)
     beta_var = tk.StringVar(value="0")
     beta_entry = ttk.Entry(frm, textvariable=beta_var, width=18)
     beta_entry.grid(row=11, column=1, sticky="w", **pad)
@@ -682,6 +697,7 @@ def run_gui() -> None:
             alpha = int(alpha_var.get().strip())
             beta = int(beta_var.get().strip())
             gps_minus_utc = int(gps_minus_utc_var.get().strip())
+            _validate_inputs(alpha=alpha)
 
             m = mode.get()
             if m == "gps_seconds":
@@ -698,6 +714,7 @@ def run_gui() -> None:
             else:
                 ptp_sec = _to_decimal(ptp_sec_var.get().strip())
                 ptp_ns = int(ptp_ns_var.get().strip())
+                _validate_inputs(alpha=alpha, ptp_ns=ptp_ns)
                 scale = ptp_scale_var.get().strip().upper()
                 gps = ptp_to_gps_seconds(ptp_sec, ptp_nanoseconds=ptp_ns, ptp_scale=scale, gps_minus_utc_seconds=gps_minus_utc)
                 src_desc = f"PTP time ({scale})"
@@ -795,6 +812,7 @@ def main():
     p.add_argument("--gui", action="store_true", help="Launch a simple GUI (Tkinter)")
 
     args = p.parse_args()
+    _validate_inputs(alpha=args.alpha, ptp_ns=args.ptp_ns, port=args.port)
 
     if args.serve:
         run_server(args.host, args.port, token=args.token, pidfile=args.pidfile)
