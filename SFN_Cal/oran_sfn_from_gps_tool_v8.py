@@ -438,6 +438,28 @@ HTML_PAGE = """<!doctype html>
     form.beta.value = '0';
     syncMode();
   }
+
+  function resetInputs(){
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.href = '/';
+  }
+
+  (function(){
+    const urlState = getStateFromQuery();
+    const hasQuery = Object.keys(urlState).length > 0;
+    if (hasQuery) {
+      applyState(urlState);
+      saveFormState();
+    } else {
+      applyState(loadFormState());
+    }
+
+    if(!document.getElementById('mode').value){
+      document.getElementById('mode').value = 'unix_epoch';
+    }
+    syncMode();
+    attachAutoSave();
+  })();
 </script>
 </body>
 </html>
