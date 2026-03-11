@@ -366,7 +366,8 @@ class OranHandler(BaseHTTPRequestHandler):
             return True
         auth = self.headers.get("Authorization")
         if auth and auth.lower().startswith("bearer "):
-            if auth.split(None, 1)[1].strip() == token:
+            parts = auth.split(None, 1)
+            if len(parts) == 2 and parts[1].strip() == token:
                 return True
 
         # 3) JSON/form body token
@@ -469,6 +470,8 @@ class OranHandler(BaseHTTPRequestHandler):
             payload_dict = {}
             if ctype == "application/json":
                 payload_dict = json.loads(raw.decode("utf-8"))
+                if not isinstance(payload_dict, dict):
+                    raise ValueError("JSON body must be an object.")
                 # convert to parse_qs-like mapping for reuse
                 params = {k: [str(v)] for k, v in payload_dict.items()}
             else:
