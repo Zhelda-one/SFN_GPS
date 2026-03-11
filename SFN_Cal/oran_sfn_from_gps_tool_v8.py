@@ -225,103 +225,291 @@ def render_text_block(result: dict) -> str:
 
 
 HTML_PAGE = """<!doctype html>
-<html lang=\"en\">
+<html lang="en">
 <head>
-  <meta charset=\"utf-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>O-RAN SFN from GPS time (11.7.2)</title>
   <style>
-    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; }
-    .grid { display: grid; grid-template-columns: 260px 1fr; gap: 10px 16px; max-width: 980px; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; max-width: 980px; }
-    input, select { padding: 8px; border: 1px solid #ccc; border-radius: 8px; width: 100%; }
-    button { padding: 10px 14px; border: 1px solid #111; border-radius: 10px; background: #111; color: white; cursor: pointer; }
-    button.secondary { background: white; color: #111; }
-    pre { background: #0b1020; color: #e7eaf6; padding: 14px; border-radius: 12px; overflow: auto; }
-    .row { display:flex; gap: 10px; align-items: center; }
-    .muted { color: #555; font-size: 0.92rem; }
-    .pill { display:inline-block; padding: 2px 10px; border: 1px solid #ccc; border-radius: 999px; font-size: 0.85rem; color: #333; }
+    :root {
+      --bg: #f4f6fb;
+      --panel: #ffffff;
+      --ink: #101828;
+      --muted: #475467;
+      --line: #d0d5dd;
+      --accent: #0f172a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 24px 20px 40px; }
+    .hero {
+      background: linear-gradient(120deg, #0f172a, #1d2939);
+      color: #f8fafc;
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: 1.4rem; }
+    .hero p { margin: 0; color: #cbd5e1; }
+    .pill {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 10px;
+      border: 1px solid #94a3b8;
+      border-radius: 999px;
+      font-size: .8rem;
+      color: #e2e8f0;
+    }
+    .layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 1100px) { .layout { grid-template-columns: minmax(760px, 1.75fr) minmax(360px, 0.85fr); gap: 18px; align-items: start; } }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(16,24,40,.06);
+    }
+    @media (min-width: 1100px) {
+      .input-card { position: sticky; top: 14px; align-self: start; }
+    }
+    .result-card { max-width: 520px; width: 100%; justify-self: end; }
+    @media (max-width: 1099px) { .result-card { max-width: none; justify-self: stretch; } }
+    .card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+    .section-title { margin: 12px 0 8px; font-size: .9rem; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px 12px; }
+    @media (min-width: 760px) { .grid.two-col { grid-template-columns: 1fr 1fr; } }
+    label { font-size: .88rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      padding: 10px 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #fff;
+    }
+    .muted { color: var(--muted); font-size: .88rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    button {
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary { background: #fff; color: var(--accent); }
+    button.warn { border-color: #b42318; background: #fff5f5; color: #b42318; }
+    .mode-block { display: none; }
+    .mode-block.active { display: block; }
+    pre {
+      margin: 0;
+      background: #0b1020;
+      color: #e7eaf6;
+      padding: 14px;
+      border-radius: 12px;
+      overflow: auto;
+      min-height: 220px;
+      max-height: 74vh;
+    }
+    code { background:#eef2ff; padding: 1px 6px; border-radius: 6px; }
   </style>
 </head>
 <body>
-  <h2>O-RAN SFN from GPS time <span class=\"pill\">11.7.2</span></h2>
-  <p class=\"muted\">Compute SFN (mod 1024) and frameId (mod 256) from GPS time. This server runs on your Linux host (no external deps).</p>
+  <div class="wrap">
+    <div class="hero">
+      <h1>O-RAN SFN from GPS time <span class="pill">11.7.2</span></h1>
+      <p>입력값은 Reset 전까지 유지됩니다. Alpha/Beta를 바꿔가며 반복 계산해서 결과를 빠르게 비교해보세요.</p>
+    </div>
 
-  <div class=\"card\">
-    <form method=\"GET\" action=\"/\">
-      <div class=\"grid\">
-        <label for=\"mode\">Input mode</label>
-        <select id=\"mode\" name=\"mode\">
-          <option value=\"unix_epoch\">Unix epoch (UTC) (Wireshark Epoch Arrival Time)</option>
-          <option value=\"gps_seconds\">GPSseconds (since 1980-01-06)</option>
-          <option value=\"gps_week_tow\">GPS week + TOW</option>
-          <option value=\"ptp\">PTP time (TAI/UTC)</option>
-        </select>
+    <div class="layout">
+      <div class="card input-card">
+        <h2>입력 파라미터</h2>
+        <form method="GET" action="/" id="calc-form" autocomplete="off">
+          <div class="grid two-col">
+            <div>
+              <label for="mode">Input mode</label>
+              <select id="mode" name="mode" onchange="syncMode()">
+                <option value="unix_epoch">Unix epoch (UTC)</option>
+                <option value="gps_seconds">GPSseconds</option>
+                <option value="gps_week_tow">GPS week + TOW</option>
+                <option value="ptp">PTP time (TAI/UTC)</option>
+              </select>
+            </div>
+            <div>
+              <label>Access token (optional)</label>
+              <input name="token" placeholder="Only if server started with --token" />
+            </div>
+          </div>
 
-        <label>Unix epoch seconds (UTC)</label>
-        <input name=\"epoch_seconds\" placeholder=\"e.g. 1771271246.102474\" />
+          <div class="section-title">Mode-specific inputs</div>
+          <div id="mode-unix_epoch" class="mode-block">
+            <label>Unix epoch seconds (UTC)</label>
+            <input name="epoch_seconds" placeholder="e.g. 1771271246.102474" />
+          </div>
 
-        <label>GPSseconds</label>
-        <input name=\"gps_seconds\" placeholder=\"e.g. 1455306464.102474\" />
+          <div id="mode-gps_seconds" class="mode-block">
+            <label>GPSseconds (since 1980-01-06)</label>
+            <input name="gps_seconds" placeholder="e.g. 1455306464.102474" />
+          </div>
 
-        <label>GPS week</label>
-        <input name=\"gps_week\" placeholder=\"e.g. 0\" />
+          <div id="mode-gps_week_tow" class="mode-block">
+            <div class="grid two-col">
+              <div>
+                <label>GPS week</label>
+                <input name="gps_week" placeholder="e.g. 0" />
+              </div>
+              <div>
+                <label>TOW seconds</label>
+                <input name="tow" placeholder="e.g. 0" />
+              </div>
+            </div>
+          </div>
 
-        <label>TOW seconds</label>
-        <input name=\"tow\" placeholder=\"e.g. 0\" />
+          <div id="mode-ptp" class="mode-block">
+            <div class="grid two-col">
+              <div>
+                <label>PTP seconds since 1970</label>
+                <input name="ptp_seconds" placeholder="e.g. 1747440512" />
+              </div>
+              <div>
+                <label>PTP nanoseconds</label>
+                <input name="ptp_ns" placeholder="e.g. 312144323" />
+              </div>
+            </div>
+            <label style="margin-top:8px">PTP timescale</label>
+            <select name="ptp_scale">
+              <option value="TAI">TAI</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </div>
 
-        <label>PTP seconds since 1970</label>
-        <input name=\"ptp_seconds\" placeholder=\"e.g. 1747440512\" />
+          <div class="section-title">Offsets</div>
+          <div class="grid two-col">
+            <div>
+              <label>GPS-UTC (seconds)</label>
+              <input name="gps_minus_utc" value="18" />
+            </div>
+            <div>
+              <label>alpha (ticks @ 1.2288 GHz)</label>
+              <input name="alpha" value="0" />
+            </div>
+            <div>
+              <label>beta (frames, 10ms units)</label>
+              <input name="beta" value="0" />
+            </div>
+          </div>
 
-        <label>PTP nanoseconds</label>
-        <input name=\"ptp_ns\" placeholder=\"e.g. 312144323\" />
-
-        <label>PTP timescale</label>
-        <select name=\"ptp_scale\">
-          <option value=\"TAI\" selected>TAI</option>
-          <option value=\"UTC\">UTC</option>
-        </select>
-
-        <label>GPS-UTC (seconds)</label>
-        <input name=\"gps_minus_utc\" value=\"18\" />
-
-        <label>alpha (ticks @ 1.2288 GHz)</label>
-        <input name=\"alpha\" value=\"0\" />
-
-        <label>beta (frames, 10ms units)</label>
-        <input name=\"beta\" value=\"0\" />
-
-        <label>Access token (optional)</label>
-        <input name=\"token\" placeholder=\"Only needed if server started with --token\" />
+          <div class="actions">
+            <button type="submit">Compute</button>
+            <button class="secondary" type="button" onclick="fillExample()">Fill sample</button>
+            <button class="warn" type="button" onclick="resetInputs()">Reset</button>
+          </div>
+          <p class="muted" style="margin:10px 0 0">API endpoint: <code>/api/compute</code> (GET/POST JSON)</p>
+        </form>
       </div>
 
-      <div class=\"row\" style=\"margin-top:14px\">
-        <button type=\"submit\">Compute</button>
-        <button class=\"secondary\" type=\"button\" onclick=\"fillExample()\">Fill example (your sample)</button>
-        <span class=\"muted\">API: <code>/api/compute</code> (GET/POST JSON)</span>
+      <div class="card result-card">
+        <h2>결과 / 안내</h2>
+        <p class="muted" style="margin-top:0">결과를 확인하면서 왼쪽 입력값(특히 alpha/beta)을 수정해 반복 계산할 수 있습니다.</p>
+        %RESULT_BLOCK%
       </div>
-    </form>
+    </div>
   </div>
 
-  %RESULT_BLOCK%
-
 <script>
-  // Keep selected mode on reload (simple)
-  (function(){
-    const url = new URL(window.location.href);
-    const mode = url.searchParams.get('mode');
-    if(mode){ document.getElementById('mode').value = mode; }
-  })();
+  const STORAGE_KEY = 'oran-sfn-form-v1';
+
+  function syncMode(){
+    const mode = document.getElementById('mode').value;
+    document.querySelectorAll('.mode-block').forEach(el => el.classList.remove('active'));
+    const active = document.getElementById('mode-' + mode);
+    if(active){ active.classList.add('active'); }
+  }
+
+  function getFormFields(){
+    const form = document.getElementById('calc-form');
+    return Array.from(form.querySelectorAll('input[name], select[name]'));
+  }
+
+  function saveFormState(){
+    const state = {};
+    getFormFields().forEach(el => {
+      state[el.name] = el.value;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function loadFormState(){
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    } catch (_e) {
+      return {};
+    }
+  }
+
+  function getStateFromQuery(){
+    const params = new URLSearchParams(window.location.search);
+    const state = {};
+    for (const [k, v] of params.entries()) {
+      state[k] = v;
+    }
+    return state;
+  }
+
+  function applyState(state){
+    const fields = getFormFields();
+    fields.forEach(el => {
+      if(Object.prototype.hasOwnProperty.call(state, el.name)){
+        el.value = state[el.name];
+      }
+    });
+  }
+
+  function attachAutoSave(){
+    getFormFields().forEach(el => {
+      el.addEventListener('input', saveFormState);
+      el.addEventListener('change', saveFormState);
+    });
+  }
 
   function fillExample(){
-    const form = document.querySelector('form');
+    const form = document.getElementById('calc-form');
     form.mode.value = 'unix_epoch';
     form.epoch_seconds.value = '1771271246.102474';
     form.gps_minus_utc.value = '18';
     form.alpha.value = '0';
     form.beta.value = '0';
-    // form.token.value = '';
+    syncMode();
+    saveFormState();
   }
+
+  function resetInputs(){
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.href = '/';
+  }
+
+  (function(){
+    const urlState = getStateFromQuery();
+    const hasQuery = Object.keys(urlState).length > 0;
+    if (hasQuery) {
+      applyState(urlState);
+      saveFormState();
+    } else {
+      applyState(loadFormState());
+    }
+
+    if(!document.getElementById('mode').value){
+      document.getElementById('mode').value = 'unix_epoch';
+    }
+    syncMode();
+    attachAutoSave();
+  })();
 </script>
 </body>
 </html>
@@ -366,7 +554,8 @@ class OranHandler(BaseHTTPRequestHandler):
             return True
         auth = self.headers.get("Authorization")
         if auth and auth.lower().startswith("bearer "):
-            if auth.split(None, 1)[1].strip() == token:
+            parts = auth.split(None, 1)
+            if len(parts) == 2 and parts[1].strip() == token:
                 return True
 
         # 3) JSON/form body token
@@ -431,24 +620,19 @@ class OranHandler(BaseHTTPRequestHandler):
             return
 
         # Render HTML page; if query provided, compute and show
-        result_block = ""
+        result_block = "<pre>입력값을 채운 뒤 Compute를 눌러주세요.</pre>"
         if parsed.query:
             try:
                 result = compute_from_params(qs)
                 text = render_text_block(result)
                 result_block = (
-                    "<div class=\"card\" style=\"margin-top:16px\">"
-                    "<h3>Result</h3>"
                     f"<pre>{_html_escape(text)}</pre>"
-                    "<div class=\"muted\">Tip: same parameters via API: <code>/api/compute?" + _html_escape(parsed.query) + "</code></div>"
-                    "</div>"
+                    "<div class=\"muted\" style=\"margin-top:10px\">Tip: same parameters via API: <code>/api/compute?" + _html_escape(parsed.query) + "</code></div>"
                 )
             except Exception as e:
                 result_block = (
-                    "<div class=\"card\" style=\"margin-top:16px\">"
-                    "<h3>Error</h3>"
+                    "<div class=\"muted\" style=\"margin-bottom:8px;color:#b42318\">입력 오류가 발생했습니다.</div>"
                     f"<pre>{_html_escape(str(e))}</pre>"
-                    "</div>"
                 )
 
         page = HTML_PAGE.replace("%RESULT_BLOCK%", result_block)
@@ -469,6 +653,8 @@ class OranHandler(BaseHTTPRequestHandler):
             payload_dict = {}
             if ctype == "application/json":
                 payload_dict = json.loads(raw.decode("utf-8"))
+                if not isinstance(payload_dict, dict):
+                    raise ValueError("JSON body must be an object.")
                 # convert to parse_qs-like mapping for reuse
                 params = {k: [str(v)] for k, v in payload_dict.items()}
             else:
