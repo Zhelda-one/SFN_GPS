@@ -341,6 +341,10 @@ HTML_PAGE = """<!doctype html>
                 <option value="ptp">PTP time (TAI/UTC)</option>
               </select>
             </div>
+            <div>
+              <label>Access token (optional)</label>
+              <input name="token" placeholder="Only if server started with --token" />
+            </div>
           </div>
 
           <div class="section-title">Mode-specific inputs</div>
@@ -524,6 +528,62 @@ def _html_escape(s: str) -> str:
 
 class OranHandler(BaseHTTPRequestHandler):
     server_version = "oran-sfn-web/1.2"
+
+    def _is_authorized(self, qs: dict | None = None, body_params: dict | None = None) -> bool:
+        """Optional token-based access control.
+
+        If server.auth_token is set (non-empty), requests must provide the same token via:
+          - Query param: token=...
+          - Header: X-Auth-Token: ...
+          - Header: Authorization: Bearer ...
+          - JSON body field: token (for POST)
+        """
+        token = getattr(self.server, "auth_token", "")
+        if not token:
+            return True
+
+        # 1) Query string token
+        if qs is not None:
+            t = _get_first(qs, "token", None)
+            if t is not None and str(t) == str(token):
+                return True
+
+        # 2) Header token
+        hdr = self.headers.get("X-Auth-Token")
+        if hdr and hdr == token:
+            return True
+        auth = self.headers.get("Authorization")
+        if auth and auth.lower().startswith("bearer "):
+            parts = auth.split(None, 1)
+            if len(parts) == 2 and parts[1].strip() == token:
+                return True
+
+        # 3) JSON/form body token
+        if body_params is not None:
+            t2 = body_params.get("token")
+            if t2 is not None and str(t2) == str(token):
+                return True
+
+        return False
+
+    def _send_unauthorized(self, is_json: bool = False):
+        if is_json:
+            self._send_json(
+                HTTPStatus.UNAUTHORIZED,
+                {
+                    "error": "unauthorized",
+                    "hint": "Provide token via ?token=..., X-Auth-Token, Authorization: Bearer, or JSON field 'token'.",
+                },
+            )
+        else:
+            body = (
+                "<html><body style='font-family:system-ui; margin:24px'>"
+                "<h3>401 Unauthorized</h3>"
+                "<p>This server is protected by a token.</p>"
+                "<p>Provide it as <code>?token=...</code> or HTTP header <code>X-Auth-Token</code>.</p>"
+                "</body></html>"
+            ).encode("utf-8")
+            self._send(HTTPStatus.UNAUTHORIZED, body)
 
     def _send(self, status: int, body: bytes, content_type: str = "text/html; charset=utf-8"):
         self.send_response(status)
