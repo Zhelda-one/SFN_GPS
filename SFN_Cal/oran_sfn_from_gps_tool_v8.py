@@ -209,7 +209,7 @@ def render_text_block(result: dict) -> str:
     """Human-readable block (same style as CLI)."""
     inp = result["input"]
     return (
-        "=== O-RAN SFN from GPS time (11.7.2) ===\n"
+        "=== O-RAN SFN from GPS time ===\n"
         f"Input source: {inp['src_desc']}\n"
         f"Input GPSseconds: {result['gps_seconds']}\n"
         f"alpha ticks: {inp['alpha']}  -> alpha seconds: {result['alpha_seconds']}\n"
@@ -225,103 +225,287 @@ def render_text_block(result: dict) -> str:
 
 
 HTML_PAGE = """<!doctype html>
-<html lang=\"en\">
+<html lang="en">
 <head>
-  <meta charset=\"utf-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-  <title>O-RAN SFN from GPS time (11.7.2)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>O-RAN SFN from GPS time</title>
   <style>
-    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; }
-    .grid { display: grid; grid-template-columns: 260px 1fr; gap: 10px 16px; max-width: 980px; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; max-width: 980px; }
-    input, select { padding: 8px; border: 1px solid #ccc; border-radius: 8px; width: 100%; }
-    button { padding: 10px 14px; border: 1px solid #111; border-radius: 10px; background: #111; color: white; cursor: pointer; }
-    button.secondary { background: white; color: #111; }
-    pre { background: #0b1020; color: #e7eaf6; padding: 14px; border-radius: 12px; overflow: auto; }
-    .row { display:flex; gap: 10px; align-items: center; }
-    .muted { color: #555; font-size: 0.92rem; }
-    .pill { display:inline-block; padding: 2px 10px; border: 1px solid #ccc; border-radius: 999px; font-size: 0.85rem; color: #333; }
+    :root {
+      --bg: #f4f6fb;
+      --panel: #ffffff;
+      --ink: #101828;
+      --muted: #475467;
+      --line: #d0d5dd;
+      --accent: #0f172a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 24px 20px 40px; }
+    .hero {
+      background: linear-gradient(120deg, #0f172a, #1d2939);
+      color: #f8fafc;
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: 1.4rem; }
+    .hero p { margin: 0; color: #cbd5e1; }
+    .pill {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 10px;
+      border: 1px solid #94a3b8;
+      border-radius: 999px;
+      font-size: .8rem;
+      color: #e2e8f0;
+    }
+    .layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 1100px) { .layout { grid-template-columns: minmax(760px, 1.75fr) minmax(360px, 0.85fr); gap: 18px; align-items: start; } }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(16,24,40,.06);
+    }
+    @media (min-width: 1100px) {
+      .input-card { position: sticky; top: 14px; align-self: start; }
+    }
+    .result-card { max-width: 520px; width: 100%; justify-self: end; }
+    @media (max-width: 1099px) { .result-card { max-width: none; justify-self: stretch; } }
+    .card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+    .section-title { margin: 12px 0 8px; font-size: .9rem; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px 12px; }
+    @media (min-width: 760px) { .grid.two-col { grid-template-columns: 1fr 1fr; } }
+    label { font-size: .88rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      padding: 10px 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #fff;
+    }
+    .muted { color: var(--muted); font-size: .88rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    button {
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary { background: #fff; color: var(--accent); }
+    button.warn { border-color: #b42318; background: #fff5f5; color: #b42318; }
+    .mode-block { display: none; }
+    .mode-block.active { display: block; }
+    pre {
+      margin: 0;
+      background: #0b1020;
+      color: #e7eaf6;
+      padding: 14px;
+      border-radius: 12px;
+      overflow: auto;
+      min-height: 220px;
+      max-height: 74vh;
+    }
+    code { background:#eef2ff; padding: 1px 6px; border-radius: 6px; }
   </style>
 </head>
 <body>
-  <h2>O-RAN SFN from GPS time <span class=\"pill\">11.7.2</span></h2>
-  <p class=\"muted\">Compute SFN (mod 1024) and frameId (mod 256) from GPS time. This server runs on your Linux host (no external deps).</p>
+  <div class="wrap">
+    <div class="hero">
+      <h1>O-RAN SFN from GPS time</h1>
+      <p>Values are kept until you click Reset. Change alpha/beta and recompute to compare results quickly.</p>
+    </div>
 
-  <div class=\"card\">
-    <form method=\"GET\" action=\"/\">
-      <div class=\"grid\">
-        <label for=\"mode\">Input mode</label>
-        <select id=\"mode\" name=\"mode\">
-          <option value=\"unix_epoch\">Unix epoch (UTC) (Wireshark Epoch Arrival Time)</option>
-          <option value=\"gps_seconds\">GPSseconds (since 1980-01-06)</option>
-          <option value=\"gps_week_tow\">GPS week + TOW</option>
-          <option value=\"ptp\">PTP time (TAI/UTC)</option>
-        </select>
+    <div class="layout">
+      <div class="card input-card">
+        <h2>Input Parameters</h2>
+        <form method="GET" action="/" id="calc-form" autocomplete="off">
+          <div class="grid two-col">
+            <div>
+              <label for="mode">Input mode</label>
+              <select id="mode" name="mode" onchange="syncMode()">
+                <option value="unix_epoch">Unix epoch (UTC)</option>
+                <option value="gps_seconds">GPSseconds</option>
+                <option value="gps_week_tow">GPS week + TOW</option>
+                <option value="ptp">PTP time (TAI/UTC)</option>
+              </select>
+            </div>
+          </div>
 
-        <label>Unix epoch seconds (UTC)</label>
-        <input name=\"epoch_seconds\" placeholder=\"e.g. 1771271246.102474\" />
+          <div class="section-title">Mode-specific inputs</div>
+          <div id="mode-unix_epoch" class="mode-block">
+            <label>Unix epoch seconds (UTC)</label>
+            <input name="epoch_seconds" placeholder="e.g. 1771271246.102474" />
+          </div>
 
-        <label>GPSseconds</label>
-        <input name=\"gps_seconds\" placeholder=\"e.g. 1455306464.102474\" />
+          <div id="mode-gps_seconds" class="mode-block">
+            <label>GPSseconds (since 1980-01-06)</label>
+            <input name="gps_seconds" placeholder="e.g. 1455306464.102474" />
+          </div>
 
-        <label>GPS week</label>
-        <input name=\"gps_week\" placeholder=\"e.g. 0\" />
+          <div id="mode-gps_week_tow" class="mode-block">
+            <div class="grid two-col">
+              <div>
+                <label>GPS week</label>
+                <input name="gps_week" placeholder="e.g. 0" />
+              </div>
+              <div>
+                <label>TOW seconds</label>
+                <input name="tow" placeholder="e.g. 0" />
+              </div>
+            </div>
+          </div>
 
-        <label>TOW seconds</label>
-        <input name=\"tow\" placeholder=\"e.g. 0\" />
+          <div id="mode-ptp" class="mode-block">
+            <div class="grid two-col">
+              <div>
+                <label>PTP seconds since 1970</label>
+                <input name="ptp_seconds" placeholder="e.g. 1747440512" />
+              </div>
+              <div>
+                <label>PTP nanoseconds</label>
+                <input name="ptp_ns" placeholder="e.g. 312144323" />
+              </div>
+            </div>
+            <label style="margin-top:8px">PTP timescale</label>
+            <select name="ptp_scale">
+              <option value="TAI">TAI</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </div>
 
-        <label>PTP seconds since 1970</label>
-        <input name=\"ptp_seconds\" placeholder=\"e.g. 1747440512\" />
+          <div class="section-title">Offsets</div>
+          <div class="grid two-col">
+            <div>
+              <label>GPS-UTC (seconds)</label>
+              <input name="gps_minus_utc" value="18" />
+            </div>
+            <div>
+              <label>alpha (ticks @ 1.2288 GHz)</label>
+              <input name="alpha" value="0" />
+            </div>
+            <div>
+              <label>beta (frames, 10ms units)</label>
+              <input name="beta" value="0" />
+            </div>
+          </div>
 
-        <label>PTP nanoseconds</label>
-        <input name=\"ptp_ns\" placeholder=\"e.g. 312144323\" />
-
-        <label>PTP timescale</label>
-        <select name=\"ptp_scale\">
-          <option value=\"TAI\" selected>TAI</option>
-          <option value=\"UTC\">UTC</option>
-        </select>
-
-        <label>GPS-UTC (seconds)</label>
-        <input name=\"gps_minus_utc\" value=\"18\" />
-
-        <label>alpha (ticks @ 1.2288 GHz)</label>
-        <input name=\"alpha\" value=\"0\" />
-
-        <label>beta (frames, 10ms units)</label>
-        <input name=\"beta\" value=\"0\" />
-
-        <label>Access token (optional)</label>
-        <input name=\"token\" placeholder=\"Only needed if server started with --token\" />
+          <div class="actions">
+            <button type="submit">Compute</button>
+            <button class="secondary" type="button" onclick="fillExample()">Fill sample</button>
+            <button class="warn" type="button" onclick="resetInputs()">Reset</button>
+          </div>
+          <p class="muted" style="margin:10px 0 0">API endpoint: <code>/api/compute</code> (GET/POST JSON)</p>
+        </form>
       </div>
 
-      <div class=\"row\" style=\"margin-top:14px\">
-        <button type=\"submit\">Compute</button>
-        <button class=\"secondary\" type=\"button\" onclick=\"fillExample()\">Fill example (your sample)</button>
-        <span class=\"muted\">API: <code>/api/compute</code> (GET/POST JSON)</span>
+      <div class="card result-card">
+        <h2>Result / Guide</h2>
+        <p class="muted" style="margin-top:0">While checking results, update inputs (especially alpha/beta) and recompute for quick comparisons.</p>
+        %RESULT_BLOCK%
       </div>
-    </form>
+    </div>
   </div>
 
-  %RESULT_BLOCK%
-
 <script>
-  // Keep selected mode on reload (simple)
-  (function(){
-    const url = new URL(window.location.href);
-    const mode = url.searchParams.get('mode');
-    if(mode){ document.getElementById('mode').value = mode; }
-  })();
+  const STORAGE_KEY = 'oran-sfn-form-v1';
+
+  function syncMode(){
+    const mode = document.getElementById('mode').value;
+    document.querySelectorAll('.mode-block').forEach(el => el.classList.remove('active'));
+    const active = document.getElementById('mode-' + mode);
+    if(active){ active.classList.add('active'); }
+  }
+
+  function getFormFields(){
+    const form = document.getElementById('calc-form');
+    return Array.from(form.querySelectorAll('input[name], select[name]'));
+  }
+
+  function saveFormState(){
+    const state = {};
+    getFormFields().forEach(el => {
+      state[el.name] = el.value;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function loadFormState(){
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    } catch (_e) {
+      return {};
+    }
+  }
+
+  function getStateFromQuery(){
+    const params = new URLSearchParams(window.location.search);
+    const state = {};
+    for (const [k, v] of params.entries()) {
+      state[k] = v;
+    }
+    return state;
+  }
+
+  function applyState(state){
+    const fields = getFormFields();
+    fields.forEach(el => {
+      if(Object.prototype.hasOwnProperty.call(state, el.name)){
+        el.value = state[el.name];
+      }
+    });
+  }
+
+  function attachAutoSave(){
+    getFormFields().forEach(el => {
+      el.addEventListener('input', saveFormState);
+      el.addEventListener('change', saveFormState);
+    });
+  }
 
   function fillExample(){
-    const form = document.querySelector('form');
+    const form = document.getElementById('calc-form');
     form.mode.value = 'unix_epoch';
     form.epoch_seconds.value = '1771271246.102474';
     form.gps_minus_utc.value = '18';
     form.alpha.value = '0';
     form.beta.value = '0';
-    // form.token.value = '';
+    syncMode();
+    saveFormState();
   }
+
+  function resetInputs(){
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.href = '/';
+  }
+
+  (function(){
+    const urlState = getStateFromQuery();
+    const hasQuery = Object.keys(urlState).length > 0;
+    if (hasQuery) {
+      applyState(urlState);
+      saveFormState();
+    } else {
+      applyState(loadFormState());
+    }
+
+    if(!document.getElementById('mode').value){
+      document.getElementById('mode').value = 'unix_epoch';
+    }
+    syncMode();
+    attachAutoSave();
+  })();
 </script>
 </body>
 </html>
@@ -341,61 +525,6 @@ def _html_escape(s: str) -> str:
 class OranHandler(BaseHTTPRequestHandler):
     server_version = "oran-sfn-web/1.2"
 
-    def _is_authorized(self, qs: dict | None = None, body_params: dict | None = None) -> bool:
-        """Optional token-based access control.
-
-        If server.auth_token is set (non-empty), requests must provide the same token via:
-          - Query param: token=...
-          - Header: X-Auth-Token: ...
-          - Header: Authorization: Bearer ...
-          - JSON body field: token (for POST)
-        """
-        token = getattr(self.server, "auth_token", "")
-        if not token:
-            return True
-
-        # 1) Query string token
-        if qs is not None:
-            t = _get_first(qs, "token", None)
-            if t is not None and str(t) == str(token):
-                return True
-
-        # 2) Header token
-        hdr = self.headers.get("X-Auth-Token")
-        if hdr and hdr == token:
-            return True
-        auth = self.headers.get("Authorization")
-        if auth and auth.lower().startswith("bearer "):
-            if auth.split(None, 1)[1].strip() == token:
-                return True
-
-        # 3) JSON/form body token
-        if body_params is not None:
-            t2 = body_params.get("token")
-            if t2 is not None and str(t2) == str(token):
-                return True
-
-        return False
-
-    def _send_unauthorized(self, is_json: bool = False):
-        if is_json:
-            self._send_json(
-                HTTPStatus.UNAUTHORIZED,
-                {
-                    "error": "unauthorized",
-                    "hint": "Provide token via ?token=..., X-Auth-Token, Authorization: Bearer, or JSON field 'token'.",
-                },
-            )
-        else:
-            body = (
-                "<html><body style='font-family:system-ui; margin:24px'>"
-                "<h3>401 Unauthorized</h3>"
-                "<p>This server is protected by a token.</p>"
-                "<p>Provide it as <code>?token=...</code> or HTTP header <code>X-Auth-Token</code>.</p>"
-                "</body></html>"
-            ).encode("utf-8")
-            self._send(HTTPStatus.UNAUTHORIZED, body)
-
     def _send(self, status: int, body: bytes, content_type: str = "text/html; charset=utf-8"):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
@@ -413,11 +542,6 @@ class OranHandler(BaseHTTPRequestHandler):
         path = parsed.path
         qs = parse_qs(parsed.query)
 
-        if not self._is_authorized(qs=qs):
-            # For API endpoints return JSON; otherwise HTML
-            self._send_unauthorized(is_json=(path == "/api/compute"))
-            return
-
         if path == "/api/compute":
             try:
                 result = compute_from_params(qs)
@@ -431,24 +555,19 @@ class OranHandler(BaseHTTPRequestHandler):
             return
 
         # Render HTML page; if query provided, compute and show
-        result_block = ""
+        result_block = "<pre>Fill in parameters and click Compute.</pre>"
         if parsed.query:
             try:
                 result = compute_from_params(qs)
                 text = render_text_block(result)
                 result_block = (
-                    "<div class=\"card\" style=\"margin-top:16px\">"
-                    "<h3>Result</h3>"
                     f"<pre>{_html_escape(text)}</pre>"
-                    "<div class=\"muted\">Tip: same parameters via API: <code>/api/compute?" + _html_escape(parsed.query) + "</code></div>"
-                    "</div>"
+                    "<div class=\"muted\" style=\"margin-top:10px\">Tip: same parameters via API: <code>/api/compute?" + _html_escape(parsed.query) + "</code></div>"
                 )
             except Exception as e:
                 result_block = (
-                    "<div class=\"card\" style=\"margin-top:16px\">"
-                    "<h3>Error</h3>"
+                    "<div class=\"muted\" style=\"margin-bottom:8px;color:#b42318\">Input error occurred.</div>"
                     f"<pre>{_html_escape(str(e))}</pre>"
-                    "</div>"
                 )
 
         page = HTML_PAGE.replace("%RESULT_BLOCK%", result_block)
@@ -469,16 +588,14 @@ class OranHandler(BaseHTTPRequestHandler):
             payload_dict = {}
             if ctype == "application/json":
                 payload_dict = json.loads(raw.decode("utf-8"))
+                if not isinstance(payload_dict, dict):
+                    raise ValueError("JSON body must be an object.")
                 # convert to parse_qs-like mapping for reuse
                 params = {k: [str(v)] for k, v in payload_dict.items()}
             else:
                 # also accept application/x-www-form-urlencoded
                 params = parse_qs(raw.decode("utf-8"))
                 payload_dict = {k: (v[0] if isinstance(v, list) and v else v) for k, v in params.items()}
-
-            if not self._is_authorized(qs=qs, body_params=payload_dict):
-                self._send_unauthorized(is_json=True)
-                return
 
             result = compute_from_params(params)
             self._send_json(HTTPStatus.OK, result)
@@ -505,13 +622,12 @@ def _guess_lan_ip() -> str:
             return "127.0.0.1"
 
 
-def run_server(host: str, port: int, token: str = "", pidfile: str = "") -> None:
+def run_server(host: str, port: int, pidfile: str = "") -> None:
     # ThreadingHTTPServer already supports concurrent requests.
     # Allow quick restart on Linux (avoid TIME_WAIT bind issues).
     ThreadingHTTPServer.allow_reuse_address = True
     httpd = ThreadingHTTPServer((host, port), OranHandler)
     httpd.daemon_threads = True
-    httpd.auth_token = token or ""  # for handler access
 
     # Optional PID file (useful for systemd/nohup management)
     if pidfile:
@@ -539,9 +655,6 @@ def run_server(host: str, port: int, token: str = "", pidfile: str = "") -> None
         print(f"Try from another device: http://{lan_ip}:{sa[1]}/")
     else:
         print(f"Listening on http://{sa[0]}:{sa[1]}")
-    if token:
-        print("Auth: ENABLED (token required)")
-        print("  Use: http://<ip>:<port>/?token=YOUR_TOKEN")
     print("Endpoints:")
     print("  /             (HTML UI)")
     print("  /api/compute   (GET/POST JSON)")
@@ -584,7 +697,7 @@ def run_cli(args: argparse.Namespace) -> None:
     out = compute_sfn_from_gps(gps, alpha_ticks=args.alpha, beta_frames=args.beta)
     subframe = _compute_subframe(out["offset_in_frame_seconds"])
 
-    print("=== O-RAN SFN from GPS time (11.7.2) ===")
+    print("=== O-RAN SFN from GPS time ===")
     print(f"Input source: {src_desc}")
     print(f"Input GPSseconds: {gps}")
     print(f"alpha ticks: {args.alpha}  -> alpha seconds: {_format_decimal(out['alpha_seconds'])}")
@@ -603,7 +716,7 @@ def run_gui() -> None:
     from tkinter import ttk, messagebox
 
     root = tk.Tk()
-    root.title("O-RAN SFN from GPS time (11.7.2)")
+    root.title("O-RAN SFN from GPS time")
 
     pad = {"padx": 10, "pady": 6}
     mode = tk.StringVar(value="gps_seconds")
@@ -723,7 +836,7 @@ def run_gui() -> None:
             subframe = _compute_subframe(out["offset_in_frame_seconds"])
 
             text = (
-                "=== O-RAN SFN from GPS time (11.7.2) ===\n"
+                "=== O-RAN SFN from GPS time ===\n"
                 f"Input source: {src_desc}\n"
                 f"Input GPSseconds: {gps}\n"
                 f"alpha ticks: {alpha}  -> alpha seconds: {_format_decimal(out['alpha_seconds'])}\n"
@@ -771,8 +884,6 @@ def main():
               # Remote/LAN access:
               python oran_sfn_from_gps_tool_v8.py --serve --host 0.0.0.0 --port 8080
 
-              # Remote + token:
-              python oran_sfn_from_gps_tool_v8.py --serve --host 0.0.0.0 --port 8080 --token mysecret
             """
         ),
     )
@@ -785,11 +896,6 @@ def main():
         help="Host/interface to bind (default 0.0.0.0 for LAN access). Use 127.0.0.1 for local-only.",
     )
     p.add_argument("--port", type=int, default=int(os.environ.get("ORAN_SFN_PORT", "8080")), help="Port to listen on (default 8080).")
-    p.add_argument(
-        "--token",
-        default=os.environ.get("ORAN_SFN_TOKEN", ""),
-        help="Optional access token. If set, requests must include it via ?token=... or X-Auth-Token header.",
-    )
     p.add_argument("--pidfile", default="", help="Write server PID to this file (Linux service/nohup helper).")
 
 
@@ -815,7 +921,7 @@ def main():
     _validate_inputs(alpha=args.alpha, ptp_ns=args.ptp_ns, port=args.port)
 
     if args.serve:
-        run_server(args.host, args.port, token=args.token, pidfile=args.pidfile)
+        run_server(args.host, args.port, pidfile=args.pidfile)
         return
 
     if args.gui:
