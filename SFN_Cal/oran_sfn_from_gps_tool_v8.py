@@ -209,7 +209,7 @@ def render_text_block(result: dict) -> str:
     """Human-readable block (same style as CLI)."""
     inp = result["input"]
     return (
-        "=== O-RAN SFN from GPS time (11.7.2) ===\n"
+        "=== O-RAN SFN from GPS time ===\n"
         f"Input source: {inp['src_desc']}\n"
         f"Input GPSseconds: {result['gps_seconds']}\n"
         f"alpha ticks: {inp['alpha']}  -> alpha seconds: {result['alpha_seconds']}\n"
@@ -229,7 +229,7 @@ HTML_PAGE = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>O-RAN SFN from GPS time (11.7.2)</title>
+  <title>O-RAN SFN from GPS time</title>
   <style>
     :root {
       --bg: #f4f6fb;
@@ -247,15 +247,15 @@ HTML_PAGE = """<!doctype html>
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       line-height: 1.45;
     }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 18px 40px; }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 24px 20px 40px; }
     .hero {
       background: linear-gradient(120deg, #0f172a, #1d2939);
       color: #f8fafc;
       border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 16px;
+      padding: 22px;
+      margin-bottom: 18px;
     }
-    .hero h1 { margin: 0 0 8px; font-size: 1.35rem; }
+    .hero h1 { margin: 0 0 8px; font-size: 1.4rem; }
     .hero p { margin: 0; color: #cbd5e1; }
     .pill {
       display: inline-block;
@@ -266,8 +266,8 @@ HTML_PAGE = """<!doctype html>
       font-size: .8rem;
       color: #e2e8f0;
     }
-    .layout { display: grid; grid-template-columns: 1fr; gap: 14px; }
-    @media (min-width: 980px) { .layout { grid-template-columns: 1.1fr .9fr; } }
+    .layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 1100px) { .layout { grid-template-columns: minmax(760px, 1.75fr) minmax(360px, 0.85fr); gap: 18px; align-items: start; } }
     .card {
       background: var(--panel);
       border: 1px solid var(--line);
@@ -275,10 +275,15 @@ HTML_PAGE = """<!doctype html>
       padding: 16px;
       box-shadow: 0 1px 2px rgba(16,24,40,.06);
     }
-    .card h2 { margin: 0 0 12px; font-size: 1.02rem; }
+    @media (min-width: 1100px) {
+      .input-card { position: sticky; top: 14px; align-self: start; }
+    }
+    .result-card { max-width: 520px; width: 100%; justify-self: end; }
+    @media (max-width: 1099px) { .result-card { max-width: none; justify-self: stretch; } }
+    .card h2 { margin: 0 0 12px; font-size: 1.05rem; }
     .section-title { margin: 12px 0 8px; font-size: .9rem; color: var(--muted); }
     .grid { display: grid; grid-template-columns: 1fr; gap: 10px 12px; }
-    @media (min-width: 720px) { .grid.two-col { grid-template-columns: 1fr 1fr; } }
+    @media (min-width: 760px) { .grid.two-col { grid-template-columns: 1fr 1fr; } }
     label { font-size: .88rem; color: var(--muted); display: block; margin-bottom: 4px; }
     input, select {
       width: 100%;
@@ -299,6 +304,7 @@ HTML_PAGE = """<!doctype html>
       font-weight: 600;
     }
     button.secondary { background: #fff; color: var(--accent); }
+    button.warn { border-color: #b42318; background: #fff5f5; color: #b42318; }
     .mode-block { display: none; }
     .mode-block.active { display: block; }
     pre {
@@ -308,7 +314,8 @@ HTML_PAGE = """<!doctype html>
       padding: 14px;
       border-radius: 12px;
       overflow: auto;
-      min-height: 180px;
+      min-height: 220px;
+      max-height: 74vh;
     }
     code { background:#eef2ff; padding: 1px 6px; border-radius: 6px; }
   </style>
@@ -316,14 +323,14 @@ HTML_PAGE = """<!doctype html>
 <body>
   <div class="wrap">
     <div class="hero">
-      <h1>O-RAN SFN from GPS time <span class="pill">11.7.2</span></h1>
-      <p>Linux 웹에서 사용하기 쉽게 입력 영역을 모드별로 분리했습니다. 필요한 항목만 보이도록 구성되어 실수 입력을 줄여줍니다.</p>
+      <h1>O-RAN SFN from GPS time</h1>
+      <p>Values are kept until you click Reset. Change alpha/beta and recompute to compare results quickly.</p>
     </div>
 
     <div class="layout">
-      <div class="card">
-        <h2>입력 파라미터</h2>
-        <form method="GET" action="/" id="calc-form">
+      <div class="card input-card">
+        <h2>Input Parameters</h2>
+        <form method="GET" action="/" id="calc-form" autocomplete="off">
           <div class="grid two-col">
             <div>
               <label for="mode">Input mode</label>
@@ -377,7 +384,7 @@ HTML_PAGE = """<!doctype html>
             </div>
             <label style="margin-top:8px">PTP timescale</label>
             <select name="ptp_scale">
-              <option value="TAI" selected>TAI</option>
+              <option value="TAI">TAI</option>
               <option value="UTC">UTC</option>
             </select>
           </div>
@@ -401,20 +408,23 @@ HTML_PAGE = """<!doctype html>
           <div class="actions">
             <button type="submit">Compute</button>
             <button class="secondary" type="button" onclick="fillExample()">Fill sample</button>
+            <button class="warn" type="button" onclick="resetInputs()">Reset</button>
           </div>
           <p class="muted" style="margin:10px 0 0">API endpoint: <code>/api/compute</code> (GET/POST JSON)</p>
         </form>
       </div>
 
-      <div class="card">
-        <h2>결과 / 안내</h2>
-        <p class="muted" style="margin-top:0">계산 후 결과가 오른쪽에 표시됩니다. 서버를 토큰으로 보호한 경우 token 입력 또는 헤더 인증이 필요합니다.</p>
+      <div class="card result-card">
+        <h2>Result / Guide</h2>
+        <p class="muted" style="margin-top:0">While checking results, update inputs (especially alpha/beta) and recompute for quick comparisons.</p>
         %RESULT_BLOCK%
       </div>
     </div>
   </div>
 
 <script>
+  const STORAGE_KEY = 'oran-sfn-form-v1';
+
   function syncMode(){
     const mode = document.getElementById('mode').value;
     document.querySelectorAll('.mode-block').forEach(el => el.classList.remove('active'));
@@ -422,12 +432,51 @@ HTML_PAGE = """<!doctype html>
     if(active){ active.classList.add('active'); }
   }
 
-  (function(){
-    const url = new URL(window.location.href);
-    const mode = url.searchParams.get('mode') || 'unix_epoch';
-    document.getElementById('mode').value = mode;
-    syncMode();
-  })();
+  function getFormFields(){
+    const form = document.getElementById('calc-form');
+    return Array.from(form.querySelectorAll('input[name], select[name]'));
+  }
+
+  function saveFormState(){
+    const state = {};
+    getFormFields().forEach(el => {
+      state[el.name] = el.value;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function loadFormState(){
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    } catch (_e) {
+      return {};
+    }
+  }
+
+  function getStateFromQuery(){
+    const params = new URLSearchParams(window.location.search);
+    const state = {};
+    for (const [k, v] of params.entries()) {
+      state[k] = v;
+    }
+    return state;
+  }
+
+  function applyState(state){
+    const fields = getFormFields();
+    fields.forEach(el => {
+      if(Object.prototype.hasOwnProperty.call(state, el.name)){
+        el.value = state[el.name];
+      }
+    });
+  }
+
+  function attachAutoSave(){
+    getFormFields().forEach(el => {
+      el.addEventListener('input', saveFormState);
+      el.addEventListener('change', saveFormState);
+    });
+  }
 
   function fillExample(){
     const form = document.getElementById('calc-form');
@@ -437,6 +486,7 @@ HTML_PAGE = """<!doctype html>
     form.alpha.value = '0';
     form.beta.value = '0';
     syncMode();
+    saveFormState();
   }
 
   function resetInputs(){
@@ -570,7 +620,7 @@ class OranHandler(BaseHTTPRequestHandler):
             return
 
         # Render HTML page; if query provided, compute and show
-        result_block = "<pre>입력값을 채운 뒤 Compute를 눌러주세요.</pre>"
+        result_block = "<pre>Fill in parameters and click Compute.</pre>"
         if parsed.query:
             try:
                 result = compute_from_params(qs)
@@ -581,7 +631,7 @@ class OranHandler(BaseHTTPRequestHandler):
                 )
             except Exception as e:
                 result_block = (
-                    "<div class=\"muted\" style=\"margin-bottom:8px;color:#b42318\">입력 오류가 발생했습니다.</div>"
+                    "<div class=\"muted\" style=\"margin-bottom:8px;color:#b42318\">Input error occurred.</div>"
                     f"<pre>{_html_escape(str(e))}</pre>"
                 )
 
@@ -720,7 +770,7 @@ def run_cli(args: argparse.Namespace) -> None:
     out = compute_sfn_from_gps(gps, alpha_ticks=args.alpha, beta_frames=args.beta)
     subframe = _compute_subframe(out["offset_in_frame_seconds"])
 
-    print("=== O-RAN SFN from GPS time (11.7.2) ===")
+    print("=== O-RAN SFN from GPS time ===")
     print(f"Input source: {src_desc}")
     print(f"Input GPSseconds: {gps}")
     print(f"alpha ticks: {args.alpha}  -> alpha seconds: {_format_decimal(out['alpha_seconds'])}")
@@ -739,7 +789,7 @@ def run_gui() -> None:
     from tkinter import ttk, messagebox
 
     root = tk.Tk()
-    root.title("O-RAN SFN from GPS time (11.7.2)")
+    root.title("O-RAN SFN from GPS time")
 
     pad = {"padx": 10, "pady": 6}
     mode = tk.StringVar(value="gps_seconds")
@@ -859,7 +909,7 @@ def run_gui() -> None:
             subframe = _compute_subframe(out["offset_in_frame_seconds"])
 
             text = (
-                "=== O-RAN SFN from GPS time (11.7.2) ===\n"
+                "=== O-RAN SFN from GPS time ===\n"
                 f"Input source: {src_desc}\n"
                 f"Input GPSseconds: {gps}\n"
                 f"alpha ticks: {alpha}  -> alpha seconds: {_format_decimal(out['alpha_seconds'])}\n"
