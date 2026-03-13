@@ -602,11 +602,6 @@ class OranHandler(BaseHTTPRequestHandler):
         path = parsed.path
         qs = parse_qs(parsed.query)
 
-        if not self._is_authorized(qs=qs):
-            # For API endpoints return JSON; otherwise HTML
-            self._send_unauthorized(is_json=(path == "/api/compute"))
-            return
-
         if path == "/api/compute":
             try:
                 result = compute_from_params(qs)
@@ -662,10 +657,6 @@ class OranHandler(BaseHTTPRequestHandler):
                 params = parse_qs(raw.decode("utf-8"))
                 payload_dict = {k: (v[0] if isinstance(v, list) and v else v) for k, v in params.items()}
 
-            if not self._is_authorized(qs=qs, body_params=payload_dict):
-                self._send_unauthorized(is_json=True)
-                return
-
             result = compute_from_params(params)
             self._send_json(HTTPStatus.OK, result)
         except Exception as e:
@@ -691,13 +682,12 @@ def _guess_lan_ip() -> str:
             return "127.0.0.1"
 
 
-def run_server(host: str, port: int, token: str = "", pidfile: str = "") -> None:
+def run_server(host: str, port: int, pidfile: str = "") -> None:
     # ThreadingHTTPServer already supports concurrent requests.
     # Allow quick restart on Linux (avoid TIME_WAIT bind issues).
     ThreadingHTTPServer.allow_reuse_address = True
     httpd = ThreadingHTTPServer((host, port), OranHandler)
     httpd.daemon_threads = True
-    httpd.auth_token = token or ""  # for handler access
 
     # Optional PID file (useful for systemd/nohup management)
     if pidfile:
@@ -725,9 +715,6 @@ def run_server(host: str, port: int, token: str = "", pidfile: str = "") -> None
         print(f"Try from another device: http://{lan_ip}:{sa[1]}/")
     else:
         print(f"Listening on http://{sa[0]}:{sa[1]}")
-    if token:
-        print("Auth: ENABLED (token required)")
-        print("  Use: http://<ip>:<port>/?token=YOUR_TOKEN")
     print("Endpoints:")
     print("  /             (HTML UI)")
     print("  /api/compute   (GET/POST JSON)")
@@ -957,8 +944,6 @@ def main():
               # Remote/LAN access:
               python oran_sfn_from_gps_tool_v8.py --serve --host 0.0.0.0 --port 8080
 
-              # Remote + token:
-              python oran_sfn_from_gps_tool_v8.py --serve --host 0.0.0.0 --port 8080 --token mysecret
             """
         ),
     )
@@ -971,11 +956,6 @@ def main():
         help="Host/interface to bind (default 0.0.0.0 for LAN access). Use 127.0.0.1 for local-only.",
     )
     p.add_argument("--port", type=int, default=int(os.environ.get("ORAN_SFN_PORT", "8080")), help="Port to listen on (default 8080).")
-    p.add_argument(
-        "--token",
-        default=os.environ.get("ORAN_SFN_TOKEN", ""),
-        help="Optional access token. If set, requests must include it via ?token=... or X-Auth-Token header.",
-    )
     p.add_argument("--pidfile", default="", help="Write server PID to this file (Linux service/nohup helper).")
 
 
@@ -1001,7 +981,7 @@ def main():
     _validate_inputs(alpha=args.alpha, ptp_ns=args.ptp_ns, port=args.port)
 
     if args.serve:
-        run_server(args.host, args.port, token=args.token, pidfile=args.pidfile)
+        run_server(args.host, args.port, pidfile=args.pidfile)
         return
 
     if args.gui:
